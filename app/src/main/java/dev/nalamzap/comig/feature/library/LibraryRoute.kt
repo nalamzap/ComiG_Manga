@@ -1,0 +1,1 @@
+package dev.nalamzap.comig.feature.library
