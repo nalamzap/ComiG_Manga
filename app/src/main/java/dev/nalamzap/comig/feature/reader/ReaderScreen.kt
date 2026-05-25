@@ -3,8 +3,8 @@ package dev.nalamzap.comig.feature.reader
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -19,7 +19,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
@@ -114,12 +117,6 @@ fun ReaderScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) {
-                    showControls = !showControls
-                }
         ) {
             when (state.readingDirection) {
                 ReadingDirection.TOP_TO_BOTTOM -> {
@@ -129,7 +126,8 @@ fun ReaderScreen(
                         initialPage = state.currentPage,
                         screenWidth = config.screenWidthDp,
                         viewModel = viewModel,
-                        onPageChanged = viewModel::onPageChanged
+                        onPageChanged = viewModel::onPageChanged,
+                        onToggleControls = { showControls = !showControls }
                     )
                 }
                 else -> {
@@ -139,7 +137,8 @@ fun ReaderScreen(
                         initialPage = state.currentPage,
                         screenWidth = config.screenWidthDp,
                         viewModel = viewModel,
-                        onPageChanged = viewModel::onPageChanged
+                        onPageChanged = viewModel::onPageChanged,
+                        onToggleControls = { showControls = !showControls }
                     )
                 }
             }
@@ -171,7 +170,8 @@ fun HorizontalReader(
     initialPage: Int,
     screenWidth: Int,
     viewModel: ReaderViewModel,
-    onPageChanged: (Int) -> Unit
+    onPageChanged: (Int) -> Unit,
+    onToggleControls: () -> Unit
 ) {
     val pagerState = rememberPagerState(
         initialPage = initialPage,
@@ -199,7 +199,8 @@ fun HorizontalReader(
             uri = comicUri,
             page = pages[index],
             width = screenWidth,
-            viewModel = viewModel
+            viewModel = viewModel,
+            onToggleControls = onToggleControls
         )
     }
 }
@@ -211,7 +212,8 @@ fun VerticalReader(
     initialPage: Int,
     screenWidth: Int,
     viewModel: ReaderViewModel,
-    onPageChanged: (Int) -> Unit
+    onPageChanged: (Int) -> Unit,
+    onToggleControls: () -> Unit
 ) {
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialPage)
 
@@ -228,7 +230,8 @@ fun VerticalReader(
                 uri = comicUri,
                 page = pages[index],
                 width = screenWidth,
-                viewModel = viewModel
+                viewModel = viewModel,
+                onToggleControls = onToggleControls
             )
         }
     }
@@ -239,16 +242,44 @@ fun PageItem(
     uri: Uri,
     page: ComicPage,
     width: Int,
-    viewModel: ReaderViewModel
+    viewModel: ReaderViewModel,
+    onToggleControls: () -> Unit
 ) {
     var bitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
 
     LaunchedEffect(page) {
         bitmap = viewModel.loadPage(uri, page, width)
+        // Reset zoom on page change
+        scale = 1f
+        offset = Offset.Zero
     }
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { onToggleControls() },
+                    onDoubleTap = {
+                        scale = if (scale > 1f) 1f else 3f
+                        offset = Offset.Zero
+                    }
+                )
+            }
+            .pointerInput(scale) {
+                if (scale > 1f) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        scale = (scale * zoom).coerceIn(1f, 7f)
+                        if (scale > 1f) {
+                            offset += pan
+                        } else {
+                            offset = Offset.Zero
+                        }
+                    }
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
         if (bitmap == null) {
@@ -257,7 +288,15 @@ fun PageItem(
             Image(
                 bitmap = bitmap!!.asImageBitmap(),
                 contentDescription = null,
-                modifier = Modifier.fillMaxWidth().wrapContentHeight(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+                    .graphicsLayer(
+                        scaleX = scale,
+                        scaleY = scale,
+                        translationX = offset.x,
+                        translationY = offset.y
+                    ),
                 contentScale = ContentScale.FillWidth
             )
         }
@@ -285,7 +324,7 @@ fun ReaderBottomBar(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "${currentPage + 1}",
+                    text = "${if(isRtl) pageCount else (currentPage + 1)}",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -302,7 +341,7 @@ fun ReaderBottomBar(
                 )
 
                 Text(
-                    text = "$pageCount",
+                    text = "${if(isRtl)(currentPage+1) else pageCount}",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
