@@ -6,7 +6,6 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import dev.nalamzap.comig.feature.home.HomeScreen
-import dev.nalamzap.comig.feature.importer.ImportScreen
 import dev.nalamzap.comig.feature.library.LibraryScreen
 import dev.nalamzap.comig.feature.reader.ReaderScreen
 
@@ -29,15 +28,10 @@ fun NavGraph() {
 
         composable(NavRoutes.LIBRARY) {
             LibraryScreen(
-                onImportClick = { navController.navigate(NavRoutes.IMPORT) },
                 onComicClick = { uri ->
                     navController.navigate("${NavRoutes.READER}/${Uri.encode(uri.toString())}")
                 }
             )
-        }
-
-        composable(NavRoutes.IMPORT) {
-            ImportScreen(onDone = { navController.popBackStack() })
         }
 
         composable(

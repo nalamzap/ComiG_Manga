@@ -94,10 +94,13 @@ import dev.nalamzap.comig.domain.model.Comic
 import dev.nalamzap.comig.domain.model.Genre
 import dev.nalamzap.comig.domain.model.Series
 
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import dev.nalamzap.comig.R
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
-    onImportClick: () -> Unit,
     onComicClick: (Uri) -> Unit,
     viewModel: LibraryViewModel = viewModel()
 ) {
@@ -177,11 +180,19 @@ fun LibraryScreen(
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
                 CenterAlignedTopAppBar(
                     title = {
-                        Text(
-                            "ComiG Manga",
-                            fontWeight = FontWeight.ExtraBold,
-                            style = MaterialTheme.typography.headlineMedium
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_logo),
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "My Library",
+                                fontWeight = FontWeight.ExtraBold,
+                                style = MaterialTheme.typography.headlineMedium
+                            )
+                        }
                     },
                     actions = {
                         var showGroupingMenu by remember { mutableStateOf(false) }
