@@ -1,1 +1,0 @@
-package dev.nalamzap.comig.core.common
