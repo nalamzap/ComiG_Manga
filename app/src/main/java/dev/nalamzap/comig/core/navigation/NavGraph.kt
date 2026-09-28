@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
+import dev.nalamzap.comig.feature.bookmarks.BookmarksScreen
 import dev.nalamzap.comig.feature.home.HomeScreen
 import dev.nalamzap.comig.feature.library.LibraryScreen
 import dev.nalamzap.comig.feature.reader.ReaderScreen
@@ -22,13 +23,23 @@ fun NavGraph() {
                 onComicClick = { uri ->
                     navController.navigate("${NavRoutes.READER}/${Uri.encode(uri.toString())}")
                 },
-                onViewLibraryClick = { navController.navigate(NavRoutes.LIBRARY) }
+                onViewLibraryClick = { navController.navigate(NavRoutes.LIBRARY) },
+                onViewBookmarksClick = { navController.navigate(NavRoutes.BOOKMARKS) }
             )
         }
 
         composable(NavRoutes.LIBRARY) {
             LibraryScreen(
                 onComicClick = { uri ->
+                    navController.navigate("${NavRoutes.READER}/${Uri.encode(uri.toString())}")
+                }
+            )
+        }
+
+        composable(NavRoutes.BOOKMARKS) {
+            BookmarksScreen(
+                onBackClick = { navController.popBackStack() },
+                onBookmarkClick = { uri ->
                     navController.navigate("${NavRoutes.READER}/${Uri.encode(uri.toString())}")
                 }
             )

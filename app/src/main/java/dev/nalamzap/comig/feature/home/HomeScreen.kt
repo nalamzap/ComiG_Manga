@@ -1,6 +1,7 @@
 package dev.nalamzap.comig.feature.home
 
 import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -10,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -18,22 +20,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import dev.nalamzap.comig.domain.model.Comic
-
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
 import dev.nalamzap.comig.R
+import dev.nalamzap.comig.core.ads.AdMobNativeAd
+import dev.nalamzap.comig.domain.model.Comic
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onComicClick: (Uri) -> Unit,
     onViewLibraryClick: () -> Unit,
+    onViewBookmarksClick: () -> Unit,
     viewModel: HomeViewModel = viewModel()
 ) {
     val recentlyRead by viewModel.recentlyRead.collectAsState()
@@ -88,6 +90,11 @@ fun HomeScreen(
                 }
             }
 
+            // Native Ad Card
+            AdMobNativeAd(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
             if (recentlyRead.isNotEmpty()) {
                 SectionHeader("Continue Reading", Icons.Default.History)
                 LazyRow(
@@ -114,12 +121,13 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Button(
                     onClick = onViewLibraryClick,
@@ -132,6 +140,18 @@ fun HomeScreen(
                     Icon(Icons.Default.Book, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Browse Library", style = MaterialTheme.typography.titleMedium)
+                }
+
+                OutlinedButton(
+                    onClick = onViewBookmarksClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.Bookmark, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Bookmarked Pages", style = MaterialTheme.typography.titleMedium)
                 }
             }
             

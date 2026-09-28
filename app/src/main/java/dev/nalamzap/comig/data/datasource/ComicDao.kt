@@ -81,4 +81,23 @@ interface ComicDao {
 
     @Delete
     suspend fun deleteSeries(series: SeriesEntity)
+
+    // Bookmarks Queries
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBookmark(bookmark: dev.nalamzap.comig.data.model.BookmarkEntity)
+
+    @Query("DELETE FROM bookmarks WHERE id = :id")
+    suspend fun deleteBookmarkById(id: String)
+
+    @Query("DELETE FROM bookmarks WHERE comicId = :comicId AND pageIndex = :pageIndex")
+    suspend fun deleteBookmarkByPage(comicId: String, pageIndex: Int)
+
+    @Query("SELECT * FROM bookmarks WHERE comicId = :comicId AND pageIndex = :pageIndex")
+    suspend fun getBookmark(comicId: String, pageIndex: Int): dev.nalamzap.comig.data.model.BookmarkEntity?
+
+    @Query("SELECT * FROM bookmarks WHERE comicId = :comicId ORDER BY pageIndex ASC")
+    fun observeBookmarksByComic(comicId: String): Flow<List<dev.nalamzap.comig.data.model.BookmarkEntity>>
+
+    @Query("SELECT * FROM bookmarks ORDER BY createdAt DESC")
+    fun observeAllBookmarks(): Flow<List<dev.nalamzap.comig.data.model.BookmarkEntity>>
 }

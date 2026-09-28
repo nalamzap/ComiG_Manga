@@ -39,4 +39,12 @@ interface ComicRepository {
     suspend fun deleteSeries(id: String, deleteComics: Boolean)
 
     fun observeSeriesTitles(): Flow<List<String>>
+
+    // Bookmarks
+    suspend fun addBookmark(comicId: String, comicTitle: String, pageIndex: Int, note: String? = null, coverPath: String? = null)
+    suspend fun removeBookmark(comicId: String, pageIndex: Int)
+    suspend fun removeBookmarkById(id: String)
+    suspend fun isBookmarked(comicId: String, pageIndex: Int): Boolean
+    fun observeBookmarksForComic(comicId: String): Flow<List<dev.nalamzap.comig.domain.model.Bookmark>>
+    fun observeAllBookmarks(): Flow<List<dev.nalamzap.comig.domain.model.Bookmark>>
 }

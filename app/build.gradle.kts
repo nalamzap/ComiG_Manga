@@ -60,6 +60,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.documentfile)
+    implementation("com.google.android.gms:play-services-ads:23.6.0")
 
     ksp(libs.androidx.room.compiler)
 

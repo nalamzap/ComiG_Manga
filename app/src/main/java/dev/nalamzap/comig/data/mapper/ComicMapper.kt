@@ -60,3 +60,27 @@ fun Series.toEntity(): SeriesEntity {
         addedAt = addedAt
     )
 }
+
+fun dev.nalamzap.comig.data.model.BookmarkEntity.toDomain(): dev.nalamzap.comig.domain.model.Bookmark {
+    return dev.nalamzap.comig.domain.model.Bookmark(
+        id = id,
+        comicId = comicId,
+        comicTitle = comicTitle,
+        pageIndex = pageIndex,
+        note = note,
+        coverPath = coverPath,
+        createdAt = createdAt
+    )
+}
+
+fun dev.nalamzap.comig.domain.model.Bookmark.toEntity(): dev.nalamzap.comig.data.model.BookmarkEntity {
+    return dev.nalamzap.comig.data.model.BookmarkEntity(
+        id = id,
+        comicId = comicId,
+        comicTitle = comicTitle,
+        pageIndex = pageIndex,
+        note = note,
+        coverPath = coverPath,
+        createdAt = createdAt
+    )
+}

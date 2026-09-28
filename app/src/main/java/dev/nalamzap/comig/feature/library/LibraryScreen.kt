@@ -316,6 +316,10 @@ fun LibraryScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
+                        item {
+                            dev.nalamzap.comig.core.ads.AdMobNativeAd()
+                        }
+
                         if (state.groupingMode != GroupingMode.NONE) {
                             groupedItems.forEach { (header, items) ->
                                 item {

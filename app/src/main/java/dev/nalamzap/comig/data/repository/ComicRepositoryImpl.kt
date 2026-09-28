@@ -463,4 +463,47 @@ class ComicRepositoryImpl(
         }
         return "comic.cbz"
     }
+
+    // Bookmarks Implementation
+    override suspend fun addBookmark(
+        comicId: String,
+        comicTitle: String,
+        pageIndex: Int,
+        note: String?,
+        coverPath: String?
+    ) {
+        val entity = dev.nalamzap.comig.data.model.BookmarkEntity(
+            id = "${comicId}_${pageIndex}",
+            comicId = comicId,
+            comicTitle = comicTitle,
+            pageIndex = pageIndex,
+            note = note,
+            coverPath = coverPath
+        )
+        dao.insertBookmark(entity)
+    }
+
+    override suspend fun removeBookmark(comicId: String, pageIndex: Int) {
+        dao.deleteBookmarkByPage(comicId, pageIndex)
+    }
+
+    override suspend fun removeBookmarkById(id: String) {
+        dao.deleteBookmarkById(id)
+    }
+
+    override suspend fun isBookmarked(comicId: String, pageIndex: Int): Boolean {
+        return dao.getBookmark(comicId, pageIndex) != null
+    }
+
+    override fun observeBookmarksForComic(comicId: String): Flow<List<dev.nalamzap.comig.domain.model.Bookmark>> {
+        return dao.observeBookmarksByComic(comicId).map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
+
+    override fun observeAllBookmarks(): Flow<List<dev.nalamzap.comig.domain.model.Bookmark>> {
+        return dao.observeAllBookmarks().map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
 }

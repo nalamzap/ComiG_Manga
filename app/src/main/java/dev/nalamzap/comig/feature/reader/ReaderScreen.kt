@@ -3,18 +3,25 @@ package dev.nalamzap.comig.feature.reader
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,9 +32,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import dev.nalamzap.comig.core.ads.FullPageNativeAd
 import dev.nalamzap.comig.domain.model.ComicPage
 import dev.nalamzap.comig.domain.model.ReadingDirection
 
@@ -40,6 +49,7 @@ fun ReaderScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val config = LocalConfiguration.current
+    val context = LocalContext.current
 
     var showControls by remember { mutableStateOf(true) }
 
@@ -58,6 +68,26 @@ fun ReaderScreen(
                         }
                     },
                     actions = {
+                        // Bookmark Toggle
+                        IconButton(onClick = { viewModel.toggleBookmark() }) {
+                            Icon(
+                                if (state.isCurrentPageBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                                contentDescription = "Bookmark Page",
+                                tint = if (state.isCurrentPageBookmarked) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                            )
+                        }
+
+                        // Bookmarks List Sheet Button
+                        IconButton(onClick = { viewModel.setShowBookmarksSheet(true) }) {
+                            Icon(Icons.Default.Bookmarks, contentDescription = "Bookmarks Sheet")
+                        }
+
+                        // Share Screenshot Button
+                        IconButton(onClick = { viewModel.setShowShareDialog(true) }) {
+                            Icon(Icons.Default.Share, contentDescription = "Share Screenshot")
+                        }
+
+                        // Settings Menu
                         var showMenu by remember { mutableStateOf(false) }
                         IconButton(onClick = { showMenu = true }) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings")
@@ -121,29 +151,28 @@ fun ReaderScreen(
             when (state.readingDirection) {
                 ReadingDirection.TOP_TO_BOTTOM -> {
                     VerticalReader(
-                        pages = state.pages,
+                        items = state.readerItems,
                         comicUri = comicUri,
-                        initialPage = state.currentPage,
+                        initialItemIndex = state.currentReaderItemIndex,
                         screenWidth = config.screenWidthDp,
                         viewModel = viewModel,
-                        onPageChanged = viewModel::onPageChanged,
+                        onItemChanged = viewModel::onReaderItemChanged,
                         onToggleControls = { showControls = !showControls }
                     )
                 }
                 else -> {
                     HorizontalReader(
-                        pages = state.pages,
+                        items = state.readerItems,
                         comicUri = comicUri,
-                        initialPage = state.currentPage,
+                        initialItemIndex = state.currentReaderItemIndex,
                         screenWidth = config.screenWidthDp,
                         viewModel = viewModel,
-                        onPageChanged = viewModel::onPageChanged,
+                        onItemChanged = viewModel::onReaderItemChanged,
                         onToggleControls = { showControls = !showControls }
                     )
                 }
             }
-            
-            // Fix: RTL Swipe issues by ensuring we don't overlay if hidden
+
             if (!showControls) {
                 Surface(
                     modifier = Modifier
@@ -160,33 +189,164 @@ fun ReaderScreen(
                 }
             }
         }
+
+        // Share Screenshot Dialog
+        if (state.showShareDialog) {
+            var caption by remember { mutableStateOf("") }
+            AlertDialog(
+                onDismissRequest = { viewModel.setShowShareDialog(false) },
+                title = { Text("Share Page Screenshot") },
+                text = {
+                    Column {
+                        Text(
+                            "Share this comic page with custom ComiG Manga header branding.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = caption,
+                            onValueChange = { caption = it },
+                            label = { Text("Caption (Optional)") },
+                            placeholder = { Text("e.g. Look at this epic scene!") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.setShowShareDialog(false)
+                            viewModel.shareCurrentPage(context, caption, config.screenWidthDp)
+                        }
+                    ) {
+                        Text("Share")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.setShowShareDialog(false) }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Bookmarks Bottom Sheet
+        if (state.showBookmarksSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { viewModel.setShowBookmarksSheet(false) }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        "Comic Bookmarks (${state.bookmarks.size})",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    if (state.bookmarks.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "No bookmarks for this comic yet.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxHeight(0.6f)
+                        ) {
+                            items(state.bookmarks) { bookmark ->
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.onPageChanged(bookmark.pageIndex)
+                                            viewModel.setShowBookmarksSheet(false)
+                                        },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                Icons.Default.Bookmark,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column {
+                                                Text(
+                                                    "Page ${bookmark.pageIndex + 1}",
+                                                    fontWeight = FontWeight.Bold,
+                                                    style = MaterialTheme.typography.bodyLarge
+                                                )
+                                                if (!bookmark.note.isNullOrBlank()) {
+                                                    Text(
+                                                        bookmark.note,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        IconButton(onClick = { viewModel.removeBookmark(bookmark.pageIndex) }) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Remove Bookmark",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
 @Composable
 fun HorizontalReader(
-    pages: List<ComicPage>,
+    items: List<ReaderPageItem>,
     comicUri: Uri,
-    initialPage: Int,
+    initialItemIndex: Int,
     screenWidth: Int,
     viewModel: ReaderViewModel,
-    onPageChanged: (Int) -> Unit,
+    onItemChanged: (Int) -> Unit,
     onToggleControls: () -> Unit
 ) {
     val pagerState = rememberPagerState(
-        initialPage = initialPage,
-        pageCount = { pages.size }
+        initialPage = initialItemIndex,
+        pageCount = { items.size }
     )
 
-    // Handle external page changes
-    LaunchedEffect(initialPage) {
-        if (pagerState.currentPage != initialPage && initialPage >= 0 && initialPage < pages.size) {
-            pagerState.scrollToPage(initialPage)
+    LaunchedEffect(initialItemIndex) {
+        if (pagerState.currentPage != initialItemIndex && initialItemIndex in items.indices) {
+            pagerState.scrollToPage(initialItemIndex)
         }
     }
 
     LaunchedEffect(pagerState.currentPage) {
-        onPageChanged(pagerState.currentPage)
+        onItemChanged(pagerState.currentPage)
     }
 
     HorizontalPager(
@@ -195,44 +355,62 @@ fun HorizontalReader(
         reverseLayout = true,
         beyondViewportPageCount = 1
     ) { index ->
-        PageItem(
-            uri = comicUri,
-            page = pages[index],
-            width = screenWidth,
-            viewModel = viewModel,
-            onToggleControls = onToggleControls
-        )
+        when (val item = items.getOrNull(index)) {
+            is ReaderPageItem.Page -> {
+                PageItem(
+                    uri = comicUri,
+                    page = item.comicPage,
+                    width = screenWidth,
+                    viewModel = viewModel,
+                    onToggleControls = onToggleControls
+                )
+            }
+            is ReaderPageItem.Ad -> {
+                FullPageNativeAd()
+            }
+            null -> {}
+        }
     }
 }
 
 @Composable
 fun VerticalReader(
-    pages: List<ComicPage>,
+    items: List<ReaderPageItem>,
     comicUri: Uri,
-    initialPage: Int,
+    initialItemIndex: Int,
     screenWidth: Int,
     viewModel: ReaderViewModel,
-    onPageChanged: (Int) -> Unit,
+    onItemChanged: (Int) -> Unit,
     onToggleControls: () -> Unit
 ) {
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialPage)
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialItemIndex)
 
     LaunchedEffect(listState.firstVisibleItemIndex) {
-        onPageChanged(listState.firstVisibleItemIndex)
+        onItemChanged(listState.firstVisibleItemIndex)
     }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         state = listState
     ) {
-        items(pages.size) { index ->
-            PageItem(
-                uri = comicUri,
-                page = pages[index],
-                width = screenWidth,
-                viewModel = viewModel,
-                onToggleControls = onToggleControls
-            )
+        items(items.size) { index ->
+            when (val item = items.getOrNull(index)) {
+                is ReaderPageItem.Page -> {
+                    PageItem(
+                        uri = comicUri,
+                        page = item.comicPage,
+                        width = screenWidth,
+                        viewModel = viewModel,
+                        onToggleControls = onToggleControls
+                    )
+                }
+                is ReaderPageItem.Ad -> {
+                    Box(modifier = Modifier.height(500.dp)) {
+                        FullPageNativeAd()
+                    }
+                }
+                null -> {}
+            }
         }
     }
 }
@@ -251,7 +429,6 @@ fun PageItem(
 
     LaunchedEffect(page) {
         bitmap = viewModel.loadPage(uri, page, width)
-        // Reset zoom on page change
         scale = 1f
         offset = Offset.Zero
     }
@@ -324,7 +501,7 @@ fun ReaderBottomBar(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "${if(isRtl) pageCount else (currentPage + 1)}",
+                    text = "${if (isRtl) pageCount else (currentPage + 1)}",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -341,7 +518,7 @@ fun ReaderBottomBar(
                 )
 
                 Text(
-                    text = "${if(isRtl)(currentPage+1) else pageCount}",
+                    text = "${if (isRtl) (currentPage + 1) else pageCount}",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
